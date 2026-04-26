@@ -59,6 +59,7 @@
 #include <node/mempool_persist_args.h>
 #include <node/miner.h>
 #include <node/peerman_args.h>
+#include <node/persistentservice.h>
 #include <policy/feerate.h>
 #include <policy/fees/block_policy_estimator.h>
 #include <policy/fees/block_policy_estimator_args.h>
@@ -327,6 +328,13 @@ void Shutdown(NodeContext& node)
     }
 
     if (node.background_init_thread.joinable()) node.background_init_thread.join();
+
+    // Stop the persistent background service before the scheduler exits.
+    if (node.persistent_service) {
+        node.persistent_service->Stop();
+        node.persistent_service.reset();
+    }
+
     // After everything has been shut down, but before things get flushed, stop the
     // the scheduler. After this point, SyncWithValidationInterfaceQueue() should not be called anymore
     // as this would prevent the shutdown from completing.
@@ -2328,6 +2336,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }, DUMP_BANS_INTERVAL);
 
     if (node.peerman) node.peerman->StartScheduledTasks(scheduler);
+
+    // Start the persistent background service (health monitor + diagnostics).
+    assert(!node.persistent_service);
+    node.persistent_service = std::make_unique<node::NodePersistentService>(node);
+    node.persistent_service->Start(scheduler);
 
 #if HAVE_SYSTEM
     StartupNotify(args);

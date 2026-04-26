@@ -42,6 +42,7 @@ class SignalInterrupt;
 
 namespace node {
 class KernelNotifications;
+class NodePersistentService;
 class Warnings;
 
 //! NodeContext struct containing references to chain state and connection
@@ -92,6 +93,8 @@ struct NodeContext {
     //! Manages all the node warnings
     std::unique_ptr<node::Warnings> warnings;
     std::thread background_init_thread;
+    //! Persistent background service (health monitor, diagnostics).
+    std::unique_ptr<NodePersistentService> persistent_service;
 
     //! Declare default constructor and destructor that are not inline, so code
     //! instantiating the NodeContext struct doesn't need to #include class
