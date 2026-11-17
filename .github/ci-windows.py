@@ -24,6 +24,27 @@ def run(cmd, **kwargs):
         sys.exit(str(e))
 
 
+def cmake_werror_dev_flag():
+    """Return -Werror=author on CMake >= 4.4, else -Werror=dev.
+
+    -Werror=dev is deprecated in CMake 4.4+. -Werror=author is ignored
+    (not treated as an error) on older CMake, so a plain swap would
+    weaken the check below 4.4.
+    """
+    output = run(["cmake", "--version"], capture_output=True, text=True).stdout
+    major = minor = 0
+    for line in output.splitlines():
+        parts = line.split()
+        if len(parts) >= 3 and parts[0].lower() == "cmake" and parts[1].lower() == "version":
+            nums = parts[2].split(".")
+            major = int(nums[0]) if nums and nums[0].isdigit() else 0
+            minor = int(nums[1]) if len(nums) > 1 and nums[1].isdigit() else 0
+            break
+    if (major, minor) >= (4, 4):
+        return "-Werror=author"
+    return "-Werror=dev"
+
+
 GENERATE_OPTIONS = {
     "standard": [
         "-DBUILD_BENCH=ON",
@@ -72,7 +93,7 @@ def generate(ci_type):
         "cmake",
         "-B",
         "build",
-        "-Werror=dev",
+        cmake_werror_dev_flag(),
         "--preset=windows",
         # Using x64-windows-release for both host and target triplets
         # to ensure vcpkg builds only release packages, thereby optimizing

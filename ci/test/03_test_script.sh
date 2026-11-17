@@ -95,7 +95,23 @@ if [ "$DOWNLOAD_PREVIOUS_RELEASES" = "true" ]; then
   test/get_previous_releases.py
 fi
 
-BITCOIN_CONFIG_ALL=(-DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DCMAKE_INSTALL_PREFIX="$BASE_OUTDIR" -Werror=dev)
+# -Werror=dev is deprecated in CMake 4.4+. -Werror=author is the
+# replacement, but CMake 3.x accepts it and silently ignores it, so keep
+# -Werror=dev on older versions.
+cmake_werror_dev_flag() {
+  local ver major minor
+  ver="$(cmake --version | awk 'NR==1 { print $3 }')"
+  major="${ver%%.*}"
+  minor="${ver#*.}"
+  minor="${minor%%.*}"
+  if [ "${major:-0}" -gt 4 ] || { [ "${major:-0}" -eq 4 ] && [ "${minor:-0}" -ge 4 ]; }; then
+    echo "-Werror=author"
+  else
+    echo "-Werror=dev"
+  fi
+}
+
+BITCOIN_CONFIG_ALL=(-DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DCMAKE_INSTALL_PREFIX="$BASE_OUTDIR" "$(cmake_werror_dev_flag)")
 if [ -z "$NO_DEPENDS" ]; then
   BITCOIN_CONFIG_ALL+=(-DCMAKE_TOOLCHAIN_FILE="$DEPENDS_DIR/$HOST/toolchain.cmake")
 fi
